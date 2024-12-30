@@ -27,6 +27,7 @@ import (
 	"os"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
+	"github.com/sigstore/sigstore/pkg/signature"
 	"github.com/sigstore/sigstore/pkg/signature/kms"
 	"github.com/sigstore/sigstore/pkg/signature/kms/cliplugin/common"
 )
@@ -90,6 +91,7 @@ func (c PluginClient) invokePlugin(ctx context.Context, stdin io.Reader, methodA
 
 // TODO: Additonal methods to be implemented
 
+// DefaultAlgorithm returns the default calgorithm used by the plugin's KMS.
 func (c PluginClient) DefaultAlgorithm() string {
 	args := &common.MethodArgs{
 		MethodName:       common.DefaultAlgorithmMethodName,
@@ -102,6 +104,7 @@ func (c PluginClient) DefaultAlgorithm() string {
 	return resp.DefaultAlgorithm.DefaultAlgorithm
 }
 
+// CreateKey creates a key on the plugin's KMS. Only the deadline from the context will be passed to the plugin.
 func (c PluginClient) CreateKey(ctx context.Context, algorithm string) (crypto.PublicKey, error) {
 	args := &common.MethodArgs{
 		MethodName: common.CreateKeyMethodName,
@@ -121,4 +124,24 @@ func (c PluginClient) CreateKey(ctx context.Context, algorithm string) (crypto.P
 		return nil, err
 	}
 	return publicKey, nil
+}
+
+// SignMessage signs a message on the plugin's KMS. Only the deadline from the context will be passed to the plugin.
+func (c PluginClient) SignMessage(message io.Reader, opts ...signature.SignOption) ([]byte, error) {
+	// If a deadline is present in opts, then ctx will be replaced by getSignOptions() to include the deadline.
+	ctx := context.TODO()
+	args := &common.MethodArgs{
+		MethodName: common.SignMessageMethodName,
+		SignMessage: &common.SignMessageArgs{
+			SignOptions: getSignOptions(&ctx, opts),
+		},
+	}
+	// We pass this context to invokePlugin so that Command will also
+	// respect the caller's deadline or the caller's cancel func.
+	resp, err := c.invokePlugin(ctx, message, args)
+	if err != nil {
+		return nil, err
+	}
+	signature := resp.SignMessage.Signature
+	return signature, nil
 }

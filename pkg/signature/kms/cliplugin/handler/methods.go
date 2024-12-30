@@ -58,3 +58,16 @@ func CreateKey(stdin io.Reader, args *common.CreateKeyArgs, impl kms.SignerVerif
 	}
 	return resp, nil
 }
+
+// SignMessage parses arguments and return values to and from the impl.
+func SignMessage(stdin io.Reader, args *common.SignMessageArgs, impl kms.SignerVerifier) (*common.SignMessageResp, error) {
+	opts := getSignOptions(args.SignOptions)
+	signature, err := impl.SignMessage(stdin, opts...)
+	if err != nil {
+		return nil, err
+	}
+	resp := &common.SignMessageResp{
+		Signature: signature,
+	}
+	return resp, nil
+}
